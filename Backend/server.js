@@ -3,6 +3,7 @@ import healthRoutes from "./routes/health.routes.js";
 import connectDB from "./config/db.js";
 import dotenv from "dotenv";
 import authRoutes from "./routes/auth.routes.js";
+import projectRoutes from "./routes/project.routes.js";
 
 dotenv.config();
 
@@ -16,6 +17,8 @@ app.use(express.json());
 
 app.use("/api/health",healthRoutes);
 app.use("/api/auth",authRoutes);
+
+app.use("/api/projects", projectRoutes);
 
 app.listen(PORT, ()=>{
     console.log(`Server running on http://localhost:${PORT}`);
