@@ -33,3 +33,25 @@ export const createProject = async (req,res) => {
         });
     }
 };
+
+
+export const getProjects = async(req,res) =>{
+    try{
+        const projects = await Project.find()
+            .populate("owner", "name email")
+            .sort({createAt: -1});
+
+            res.status(200).json({
+                success: true,
+                count: projects.length,
+                projects
+            });
+    } catch (error) {
+        console.error(error);
+
+        res.status(500).json({
+            success: false,
+            message: "Server error"
+        });
+    }
+};
