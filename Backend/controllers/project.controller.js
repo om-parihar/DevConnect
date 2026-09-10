@@ -37,9 +37,27 @@ export const createProject = async (req,res) => {
 
 export const getProjects = async(req,res) =>{
     try{
-        const projects = await Project.find()
+        const {search, techStack} = req.query;
+
+        const filter = {};
+
+        if(search){
+            filter.$or = [
+                {title: {$regex: search, $options: "i"}},
+                {description: { $regex: search, $options: "i"}}
+            ];
+        }
+
+        if(techStack) {
+            filter.techStack = {
+                $regex: techStack,
+                $options: "i"
+            };
+        }
+
+        const projects = await Project.find(filter)
             .populate("owner", "name email")
-            .sort({createAt: -1});
+            .sort({createdAt: -1});
 
             res.status(200).json({
                 success: true,
@@ -117,6 +135,39 @@ export const updateProject = async (req, res) => {
             project
         });
 
+    } catch (error) {
+        console.error(error);
+
+        res.status(500).json({
+            success: false,
+            message: "Server error"
+        });
+    }
+};
+
+
+export const deleteProject = async(req,res) =>{
+    try{
+        const project = await Project.findById(req.params.id);
+
+        if(!project) {
+            return res.status(404).json({
+                success: false,
+                message: "Project not found"
+            });
+        }
+        if(project.owner.toString()!=req.user._id.toString()) {
+            return res.status(403).json({
+                success:false,
+                message: "You are not authorized to delete this project"
+            });
+        }
+        await project.deleteOne();
+
+        res.status(200).json({
+            success: true,
+            message: "Project deleted successfully"
+        });
     } catch (error) {
         console.error(error);
 
