@@ -35,20 +35,31 @@ export const createProject = async (req,res) => {
 };
 
 
-export const getProjects = async(req,res) =>{
-    try{
-        const {search, techStack} = req.query;
+export const getProjects = async (req, res) => {
+    try {
+        const { search, techStack, mine } = req.query;
 
         const filter = {};
 
-        if(search){
+        if (mine === "true") {
+            if (!req.user) {
+                return res.status(401).json({
+                    success: false,
+                    message: "Please log in to view your projects"
+                });
+            }
+
+            filter.owner = req.user._id;
+        }
+
+        if (search) {
             filter.$or = [
-                {title: {$regex: search, $options: "i"}},
-                {description: { $regex: search, $options: "i"}}
+                { title: { $regex: search, $options: "i" } },
+                { description: { $regex: search, $options: "i" } }
             ];
         }
 
-        if(techStack) {
+        if (techStack) {
             filter.techStack = {
                 $regex: techStack,
                 $options: "i"
@@ -57,17 +68,17 @@ export const getProjects = async(req,res) =>{
 
         const projects = await Project.find(filter)
             .populate("owner", "name email")
-            .sort({createdAt: -1});
+            .sort({ createdAt: -1 });
 
-            res.status(200).json({
-                success: true,
-                count: projects.length,
-                projects
-            });
+        return res.status(200).json({
+            success: true,
+            count: projects.length,
+            projects
+        });
     } catch (error) {
         console.error(error);
 
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: "Server error"
         });
@@ -102,6 +113,7 @@ export const getProjectById = async (req, res) => {
     }
 };
 
+
 export const updateProject = async (req, res) => {
     try {
         const project = await Project.findById(req.params.id);
@@ -116,16 +128,16 @@ export const updateProject = async (req, res) => {
         if (project.owner.toString() !== req.user._id.toString()) {
             return res.status(403).json({
                 success: false,
-                message: "You are not authorized to update this project"
+                message: "You can only update your own projects"
             });
         }
 
         const { title, description, techStack, github } = req.body;
 
-        project.title = title ?? project.title;
-        project.description = description ?? project.description;
-        project.techStack = techStack ?? project.techStack;
-        project.github = github ?? project.github;
+        if (title !== undefined) project.title = title;
+        if (description !== undefined) project.description = description;
+        if (techStack !== undefined) project.techStack = techStack;
+        if (github !== undefined) project.github = github;
 
         await project.save();
 
@@ -134,7 +146,40 @@ export const updateProject = async (req, res) => {
             message: "Project updated successfully",
             project
         });
+    } catch (error) {
+        console.error(error);
 
+        res.status(500).json({
+            success: false,
+            message: "Server error"
+        });
+    }
+};
+
+export const deleteProject = async (req, res) => {
+    try {
+        const project = await Project.findById(req.params.id);
+
+        if (!project) {
+            return res.status(404).json({
+                success: false,
+                message: "Project not found"
+            });
+        }
+
+        if (project.owner.toString() !== req.user._id.toString()) {
+            return res.status(403).json({
+                success: false,
+                message: "You can only delete your own projects"
+            });
+        }
+
+        await Project.findByIdAndDelete(req.params.id);
+
+        res.status(200).json({
+            success: true,
+            message: "Project deleted successfully"
+        });
     } catch (error) {
         console.error(error);
 
@@ -146,32 +191,24 @@ export const updateProject = async (req, res) => {
 };
 
 
-export const deleteProject = async(req,res) =>{
-    try{
-        const project = await Project.findById(req.params.id);
 
-        if(!project) {
-            return res.status(404).json({
-                success: false,
-                message: "Project not found"
-            });
-        }
-        if(project.owner.toString()!=req.user._id.toString()) {
-            return res.status(403).json({
-                success:false,
-                message: "You are not authorized to delete this project"
-            });
-        }
-        await project.deleteOne();
+export const getMyProjects = async (req, res) => {
+    try {
+        const projects = await Project.find({
+            owner: req.user._id
+        })
+            .populate("owner", "name email")
+            .sort({ createdAt: -1 });
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
-            message: "Project deleted successfully"
+            count: projects.length,
+            projects
         });
     } catch (error) {
         console.error(error);
 
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: "Server error"
         });
