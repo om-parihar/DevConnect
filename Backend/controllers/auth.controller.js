@@ -2,34 +2,55 @@ import bcrypt from "bcrypt";
 import User from "../models/user.js";
 import jwt from "jsonwebtoken";
 
-export const registUser = async(req,res)=>{
-    try{
-        const {name,email,password}=req.body;
+export const registUser = async (req, res) => {
+    try {
+        const { name, email, password } = req.body;
 
-        if(!name || !email || !password){
+        if (!name?.trim() || !email?.trim() || !password) {
             return res.status(400).json({
                 success: false,
                 message: "Name, email and password are required"
             });
         }
 
-        const existingUser = await User.findOne({email});
+        const normalizedEmail = email.trim().toLowerCase();
 
-        if(existingUser){
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9-]+(\.[a-zA-Z]{2,})+$/;
+
+        if (!emailRegex.test(normalizedEmail)) {
             return res.status(400).json({
-                success:false,
-                message:"User already exists"
+                success: false,
+                message: "Please enter a valid email address"
             });
         }
-        const hashedPassword = await bcrypt.hash(password,10);
+
+        if (password.length < 8) {
+            return res.status(400).json({
+                success: false,
+                message: "Password must be at least 8 characters long"
+            });
+        }
+
+        const existingUser = await User.findOne({
+            email: normalizedEmail
+        });
+
+        if (existingUser) {
+            return res.status(400).json({
+                success: false,
+                message: "User already exists"
+            });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
 
         const user = await User.create({
-            name,
-            email,
+            name: name.trim(),
+            email: normalizedEmail,
             password: hashedPassword
         });
 
-        res.status(201).json({
+        return res.status(201).json({
             success: true,
             message: "User registered successfully",
             user: {
@@ -38,10 +59,10 @@ export const registUser = async(req,res)=>{
                 email: user.email
             }
         });
-    } catch (error){
+    } catch (error) {
         console.error(error);
 
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: "Server error"
         });
